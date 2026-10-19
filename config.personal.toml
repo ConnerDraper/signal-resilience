@@ -1,0 +1,73 @@
+# signal-resilience: personal signals.
+#
+# The same sweep as config.toml, on signals built from raw Barra data in
+# src/signal_resilience/personal.py instead of the production alpha library.
+# Select it on every command: `uv run resilience --config config.personal.toml ...`
+
+[experiment]
+label  = "personal"
+source = "personal"           # build the signals; there is no alpha library
+output = "output/personal"    # kept apart from the production results
+
+
+[environment]
+data_root = "/home/connerd4"
+database  = "production"
+
+
+[window]
+start = 2005-01-01
+# Nothing after the July 2025 data-lake hole is analyzed (see config.toml), so
+# nothing after it is solved.
+end          = 2025-07-03
+analysis_end = 2025-07-03
+
+
+[sweep]
+signals = [
+    "resid_reversal_1w",
+    "resid_reversal_1m",
+    "industry_reversal",
+    "high_52w",
+    "industry_momentum",
+    "resid_momentum_vs",
+    "momentum_vs",
+]
+target_active_risk = 0.05
+lags = [0, 5, 21]
+rebalance_periods = [1, 5, 21]
+
+
+[reference]
+default = ["ZeroInvestment", "ZeroBeta"]
+
+[reference.signals]
+
+
+[slurm.data]
+# Builds every signal from 21 years of raw assets and industry exposures.
+n_cpus = 8
+mem    = "96G"
+time   = "02:00:00"
+
+[slurm.backtest]
+n_cpus              = 8
+mem                 = "32G"
+time                = "04:00:00"
+max_concurrent_jobs = 22
+
+[slurm.longshort]
+n_cpus = 8
+mem    = "32G"
+time   = "02:00:00"
+
+[slurm.analyze]
+# One worker per signal; production's 6 peaked at 57G, so 7 need more than 64G.
+n_cpus = 8
+mem    = "96G"
+time   = "01:30:00"
+
+[slurm.plot]
+n_cpus = 1
+mem    = "8G"
+time   = "00:15:00"

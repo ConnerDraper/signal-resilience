@@ -1,0 +1,22 @@
+[project]
+name = "signal-resilience"
+version = "0.2.0"
+description = "Lag and rebalance-period resilience sweep for the Silver Fund production alphas"
+requires-python = ">=3.11,<3.14"
+dependencies = ["sf-quant", "polars", "matplotlib", "joblib"]
+
+[project.scripts]
+resilience = "signal_resilience.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/signal_resilience"]
+
+[tool.uv.sources]
+sf-quant = { path = "../../libraries/sf-quant", editable = true }
+
+[dependency-groups]
+dev = ["pytest>=8.0.0"]

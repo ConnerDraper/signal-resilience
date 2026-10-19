@@ -1,0 +1,88 @@
+# signal-resilience run parameters.
+#
+# Every tunable lives here; src/signal_resilience/config.py only types and reads
+# this file. Unknown keys raise, so a typo stops the run instead of quietly
+# changing it. `uv run resilience submit --dry-run` confirms a change parses.
+
+[experiment]
+# The production alphas. config.personal.toml is the same pipeline on
+# signals built in personal.py.
+label  = "production"
+source = "library"   # read alphas from [environment] alphas
+output = "output"    # every generated file, relative to the project
+
+[environment]
+# sf_quant data lake (supercomputer paths) and the production alpha library.
+data_root = "/home/connerd4"
+database  = "production"
+alphas    = "/home/connerd4/groups/grp_quant/database/production/alphas/alphas.parquet"
+
+
+[window]
+# TOML dates are native -- do not quote them.
+start = 2005-01-01
+# Last date in the alpha library. Backtests run to here.
+end = 2026-03-20
+# Last date analyzed. From July 2025 the data lake is patchy: no alphas from
+# 2025-07-03 to 2025-12-23, and the asset calendar skips most of Sep 2025 -
+# Jan 2026. Past this date a "daily" portfolio would be held across a
+# months-long hole as one holding period, so results stop here. Each date's
+# solve is independent, so this filters weights; it never re-solves.
+analysis_end = 2025-07-03
+
+
+[sweep]
+signals = ["barra_momentum", "barra_reversal", "beta", "ivol", "momentum", "reversal"]
+target_active_risk = 0.05
+# Solved daily, one SLURM array job per (signal, lag). A lag pairs a stale
+# alpha with today's risk model, so each one is its own optimization.
+lags = [0, 5, 21]
+# Derived, never solved: each date's solve depends only on that date, so a
+# rebalance period is the lag-0 daily portfolios kept every N days. Every
+# starting day (phase) of every period is evaluated.
+rebalance_periods = [1, 5, 21]
+
+
+[reference]
+# Constraints on the long/short reference, on top of the 5% risk budget: any
+# subset of "ZeroInvestment" and "ZeroBeta" (the closed form handles equality
+# constraints only). The default is the fund mandate minus LongOnly.
+default = ["ZeroInvestment", "ZeroBeta"]
+
+[reference.signals]
+# Per-signal overrides. Betting against beta is long low-beta, short high-beta:
+# with zero net weight that portfolio has negative beta, so zero beta rules it
+# out. Dropping ZeroInvestment allows the classic construction (more dollars
+# long than short, still beta-neutral).
+beta = ["ZeroBeta"]
+
+
+# SLURM resources per stage.
+[slurm.data]
+n_cpus = 4
+mem    = "32G"
+time   = "00:30:00"
+
+[slurm.backtest]
+# One array task per year; one solve per worker process.
+n_cpus              = 8
+mem                 = "32G"
+time                = "04:00:00"
+max_concurrent_jobs = 22
+
+[slurm.longshort]
+n_cpus = 8
+mem    = "32G"
+time   = "02:00:00"
+
+[slurm.analyze]
+# One worker process per signal.
+n_cpus = 8
+mem    = "64G"
+time   = "01:30:00"
+
+[slurm.plot]
+# Reads output/analysis only; no data lake access.
+n_cpus = 1
+mem    = "8G"
+time   = "00:15:00"
